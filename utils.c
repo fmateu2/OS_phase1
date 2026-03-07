@@ -1,11 +1,4 @@
-/*
- * The Citadel System - Phase 1
- * Curs 2025-26
- *
- * @author: Jan Francesc Porcar
- */
-
-#include "maester.h"
+#include "utils.h"
 
 /**
  * @brief Reads characters from fd until separator is found.
@@ -17,7 +10,9 @@ char *readUntil(int fd, char separator) {
     int capacity = 16;
 
     char *buffer = malloc(capacity);
-    if (buffer == NULL) return NULL;
+    if (buffer == NULL) {
+        return NULL;
+    }
 
     while (read(fd, &ch, 1) == 1) {
         if (ch == separator) {
