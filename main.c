@@ -1,22 +1,29 @@
 #include "maester.h"
+#include <unistd.h>
 
 int main(int argc, char *argv[]) {
-    Config cfg;
-    Inventory inv;
-    int valid;
+    Maester maester;
+    int len;
+    char *line;
+
+    //falta inicialitzar senyals
 
      if (argc < 3) {
-        printf("Usage: maester <config.dat> <stock.db>\n");
+        printF("Usage: maester <config.dat> <stock.db>\n");
         return 1;
+    } else {
+        maester = load_maester(argv[1], argv[2]);
+        while (1) {
+            wprint("$ ");
+            line = readUntil(STDIN_FILENO, '\n');
+            if (!line) {
+                break;
+            }
+            str_trim(line);
+            dispatch(&maester, line);
+            free(line);
+        }
+        free_maester(&maester);
     }
-
-    cfg = load_config(argv[1]);
-    inv = load_inventory(argv[2]);
-
-    //init_envoys;
-    //init alliances;
-
-    a
-
-    
+    return 0;
 }

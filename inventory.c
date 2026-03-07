@@ -66,7 +66,7 @@ void display_inventory(Inventory inv) {
 }
 
 void save_inventory(Inventory inv) {
-    int fd = open("stock.db", O_WRONLY | O_CREAT | O_TRUNC, 0644);
+    int fd = open("stock.db", O_WRONLY | O_CREAT | O_TRUNC, 0644);   
     if (fd < 0) {
         printF("ERROR: Cannot open inventory for writing.");
         return;

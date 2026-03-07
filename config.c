@@ -103,8 +103,5 @@ void free_config(Config *cfg){
         cfg->routes = NULL;
         cfg->num_routes = 0;
         cfg->has_default = 0;
-    }
-        
-
-    
+    }  
 }

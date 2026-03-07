@@ -1,20 +1,10 @@
 #ifndef MAESTER_H
 #define MAESTER_H
 
-#include "utils.h"
-
-
-typedef enum {
-    PENDING,
-    ON_PENDING,
-    ALLIED,
-    FAILED,
-} AllianceStatus;
-
-typedef struct {
-    char *realm;
-    AllianceStatus alliance;
-} Alliance;
+#include "config.h"
+#include "inventory.h"
+#include "envoy.h"
+#include "alliance.h"
 
 typedef struct {
     Config config;
@@ -25,11 +15,8 @@ typedef struct {
     int num_alliances;
 } Maester;
 
-
-
-
-
-
+Maester load_maester(const char *config_file, const char *inventory_file);
+void free_maester(Maester *maester);
 
 
 #endif
