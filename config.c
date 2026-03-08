@@ -4,6 +4,28 @@
 #include <stdlib.h>
 #include <string.h>
 
+void remove_ampersand(char *s) {
+    int i;
+    int j;
+    int len;
+
+    if (!s) {
+        return;
+    }
+
+    len = strlen(s);
+    i = 0;
+    while (i < len) {
+        if (s[i] == '&') {
+            for (j = i; j < len; j++) {
+                s[j] = s[j + 1];
+            }
+            len--;
+        } else {
+            i++;
+        }
+    }
+}
 
 Config load_file(char *path) {
     Config cfg = {0};
@@ -15,6 +37,7 @@ Config load_file(char *path) {
         return cfg;
     } else {
         line = readUntil(fd, '\n');
+        remove_ampersand(line);
         cfg.realm = strdup(line);
         free(line);
 
@@ -46,6 +69,7 @@ Config load_file(char *path) {
             name = strtok(line, " ");
             ip = strtok(NULL, " ");
             port = atoi(strtok(NULL, " "));
+            remove_ampersand(name);
 
             if (strcmp(name, "DEFAULT") == 0) {
                 cfg.has_default = 1;
