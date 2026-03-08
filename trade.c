@@ -1,201 +1,251 @@
-#define _POSIX_C_SOURCE 200809L
 #include "maester.h"
-#include <stdlib.h>
-#include <string.h>
 #include <fcntl.h>
-#include <unistd.h>
-#include <stdio.h>
 
-
-/* ── Shopping list entry ── */
 typedef struct {
-    char name[100];
-    int  qty;
-} order_item_t;
+    char *name;
+    int qty;
+} OrderItem;
 
-static void write_trade_file(const char *folder, const char *realm,
-                             order_item_t *items, int count)
-{
-    char path[512];
-    int  fd, i;
+void start_trade_session(Maester *maester, char *realm, int *keep_running) {    
+    char *msg = NULL;
+    char *line = NULL;
+    char *upper = NULL;
+    char *args = NULL;
+    char *last_space = NULL;
+    char *p = NULL;
+    char *prod = NULL;
+    char *qty_str = NULL;
+    char *out = NULL;
+    char *err = NULL;
+    char *path = NULL;
+    char *entry = NULL;
+    char *ok = NULL;
+    OrderItem *items = NULL;
+    OrderItem *tmp = NULL;
+    int item_count = 0;
+    int qty = 0;
+    int valid = 1;
+    int found = 0;
+    int fd = -1;
+    int i = 0;
 
-    /* build path: folder/trade_REALM.txt */
-    snprintf(path, sizeof(path), "%s/trade_%s.txt", folder, realm);
-
-    fd = open(path, O_WRONLY | O_CREAT | O_TRUNC, 0644);
-    if (fd < 0) {
-        wprintln("ERROR: Cannot write trade file.");
-        return;
+    asprintf(&msg, "Entering trade mode with %s.\n", realm);
+    if (msg) {
+        printF(msg);
+        free(msg);
     }
 
-    for (i = 0; i < count; i++) {
-        write(fd, items[i].name, strlen(items[i].name));
-        write(fd, " ", 1);
-        char nbuf[16];
-        int n = items[i].qty, idx = 0;
-        if (n == 0) { nbuf[idx++] = '0'; }
-        while (n > 0) { nbuf[idx++] = '0' + n % 10; n /= 10; }
-        /* reverse */
-        for (int a = 0, b = idx-1; a < b; a++, b--) {
-            char t = nbuf[a]; nbuf[a] = nbuf[b]; nbuf[b] = t;
-        }
-        write(fd, nbuf, idx);
-        write(fd, "\n", 1);
-    }
-
-    close(fd);
-
-    wprint("Trade list sent to ");
-    wprintln(realm);
-}
-
-/* Check alliance with realm */
-static int is_allied(app_state_t *state, const char *realm)
-{
-    for (int i = 0; i < state->alliance_count; i++) {
-        if (strcasecmp(state->alliances[i].realm, realm) == 0)
-            return state->alliances[i].status == ALLIANCE_ALLIED;
-    }
-    return 0;
-}
-
-void start_trade_session(app_state_t *state, const char *realm)
-{
-    char line[512];
-    char upper[512];
-    order_item_t *items = NULL;
-    int           item_count = 0;
-
-    if (!is_allied(state, realm)) {
-        wprint("ERROR: You must have an alliance with ");
-        wprint(realm);
-        wprintln(" to trade.");
-        return;
-    }
-
-    if (state->inv_count == 0) {
-        wprintln("ERROR: No products in your inventory.");
-        return;
-    }
-
-    wprint("Entering trade mode with ");
-    wprintln(realm);
-    wprint("Available products: ");
-    for (int i = 0; i < state->inv_count; i++) {
-        if (i > 0) wprint(", ");
-        wprint(state->inventory[i].name);
-    }
-    write(STDOUT_FILENO, "\n", 1);
-
-    /* interactive sub-loop */
     while (keep_running) {
-        wprint("(trade)> ");
-        int n = readline_fd(STDIN_FILENO, line, sizeof(line));
-        if (n < 0) break;
+        printF("(trade)> ");
+        line = readUntil(STDIN_FILENO, '\n');
+        if (line == NULL) {
+            break;
+        }
         str_trim(line);
-        if (line[0] == '\0') continue;
 
-        str_toupper(upper, line, sizeof(upper));
+        if (line[0] == '\0') {
+            free(line);
+            continue;
+        }
 
+        upper = malloc(strlen(line) + 1);
+        if (!upper) {
+            free(line);
+            break;
+        }
+        str_toupper_copy(upper, line, strlen(line) + 1);
+
+     
         if (strcmp(upper, "SEND") == 0) {
             if (item_count == 0) {
-                wprintln("Shopping list is empty. Nothing to send.");
+                printF("Shopping list is empty. Nothing to send.\n");
             } else {
-                write_trade_file(state->config.folder, realm, items, item_count);
+                asprintf(&path, "%s/trade_%s.txt", maester->config.path, realm);
+                if (path != NULL) {
+                    fd = open(path, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+                    free(path);
+                    path = NULL;
+                    if (fd < 0) {
+                        printF("ERROR: Cannot write trade file.\n");
+                    } else {
+                        for (i = 0; i < item_count; i++) {
+                            asprintf(&entry, "%s %d\n", items[i].name, items[i].qty);
+                            if (entry) {
+                                write(fd, entry, strlen(entry));
+                                free(entry);
+                                entry = NULL;
+                            }
+                        }
+                        close(fd);
+                        asprintf(&ok, "Trade list sent to %s.\n", realm);
+                        if (ok) {
+                            printF(ok);
+                            free(ok);
+                            ok = NULL;
+                        }
+                    }
+                }
             }
+            free(upper);
+            free(line);
             break;
 
-        } else if (str_startswith(upper, "ADD ")) {
-            /* ADD <product name> <qty> */
-            /* find last token as quantity, rest is product name */
-            char *last_space = NULL;
-            char *p = line + 4;  /* skip "ADD " */
-            str_trim(p);
+       
+        } else if (strncmp(upper, "ADD ", strlen("ADD ")) == 0) {
+            args = line + 4;
+            last_space = NULL;
+            str_trim(args);
 
-            /* find last space */
-            for (char *q = p; *q; q++)
-                if (*q == ' ') last_space = q;
+            for (p = args; *p != '\0'; p++) {
+                if (*p == ' '){
+                    last_space = p;
+                } 
+            }
 
-            if (!last_space) {
-                wprintln("Usage: add <product name> <quantity>");
+            if (last_space == NULL) {
+                printF("Usage: add <product> <amount>\n");
+                free(upper);
+                free(line);
                 continue;
             }
 
             *last_space = '\0';
-            char *prod_name = p;
-            char *qty_str   = last_space + 1;
-            int   qty = 0;
-            for (int i = 0; qty_str[i]; i++) {
-                if (qty_str[i] < '0' || qty_str[i] > '9') { qty = -1; break; }
+            prod = args;
+            qty_str = last_space + 1;
+
+            qty = 0;
+            valid = 1;
+            for (i = 0; qty_str[i] != '\0'; i++) {
+                if (!isdigit((int)qty_str[i])){ 
+                    valid = 0; break; 
+                }
                 qty = qty * 10 + (qty_str[i] - '0');
             }
 
-            if (qty <= 0) {
-                wprintln("ERROR: Quantity must be a positive number.");
+            if (!valid || qty <= 0) {
+                printF("ERROR: Amount must be a positive number.\n");
+                free(upper);
+                free(line);
                 continue;
             }
 
-            /* check product exists */
-            int found = 0;
-            for (int i = 0; i < state->inv_count; i++) {
-                if (strcasecmp(state->inventory[i].name, prod_name) == 0) {
-                    found = 1; break;
-                }
-            }
-            if (!found) {
-                wprint("ERROR: Product '");
-                wprint(prod_name);
-                wprintln("' not found in inventory.");
-                continue;
-            }
-
-            /* add or update order */
-            int updated = 0;
-            for (int i = 0; i < item_count; i++) {
-                if (strcasecmp(items[i].name, prod_name) == 0) {
+            found = 0;
+            for (i = 0; i < item_count; i++) {
+                if (strcasecmp(items[i].name, prod) == 0) {
                     items[i].qty += qty;
-                    updated = 1; break;
+                    found = 1;
+                    break;
                 }
             }
-            if (!updated) {
-                order_item_t *tmp = realloc(items,
-                                   sizeof(order_item_t) * (item_count + 1));
-                if (!tmp) { wprintln("ERROR: Out of memory."); break; }
+
+            if (!found) {
+                tmp = realloc(items, sizeof(OrderItem) * (item_count + 1));
+                if (tmp == NULL) {
+                    printF("ERROR: Out of memory.\n");
+                    free(upper);
+                    free(line);
+                    break;
+                }
                 items = tmp;
-                strncpy(items[item_count].name, prod_name,
-                        sizeof(items[0].name) - 1);
-                items[item_count].name[sizeof(items[0].name)-1] = '\0';
-                items[item_count].qty = qty;
+                items[item_count].name = strdup(prod);
+                items[item_count].qty  = qty;
                 item_count++;
             }
 
-            wprint("Added ");
-            wprint_int(qty);
-            wprint(" x ");
-            wprintln(prod_name);
+            asprintf(&out, "Added %d x %s\n", qty, prod);
+            if (out) {
+                printF(out);
+                free(out);
+                out = NULL;
+            }
 
-        } else if (strcmp(upper, "LIST") == 0) {
-            if (item_count == 0) {
-                wprintln("Shopping list is empty.");
+        } else if (strncmp(upper, "REMOVE ", strlen("REMOVE ")) == 0) {
+            args = line + 7;
+            last_space = NULL;
+            str_trim(args);
+
+            for (p = args; *p != '\0'; p++) {
+                if (*p == ' ') last_space = p;
+            }
+
+            if (last_space == NULL) {
+                printF("Usage: remove <product> <amount>\n");
+                free(upper);
+                free(line);
+                continue;
+            }
+
+            *last_space = '\0';
+            prod = args;
+            qty_str = last_space + 1;
+
+            qty = 0;
+            valid = 1;
+            
+            for (i = 0; qty_str[i] != '\0'; i++) {
+                if (!isdigit((int)qty_str[i])){ 
+                    valid = 0; break; 
+                }
+                qty = qty * 10 + (qty_str[i] - '0');
+            }
+
+            if (!valid || qty <= 0) {
+                printF("ERROR: Amount must be a positive number.\n");
+                free(upper);
+                free(line);
+                continue;
+            }
+
+            found = 0;
+            for (i = 0; i < item_count; i++) {
+                if (strcasecmp(items[i].name, prod) == 0) {
+                    items[i].qty -= qty;
+                    found = 1;
+                    if (items[i].qty <= 0) {
+                        free(items[i].name);
+                        for (int j = i; j < item_count - 1; j++) {
+                            items[j] = items[j + 1];
+                        }
+                        item_count--;
+                    }
+                    break;
+                }
+            }
+
+            if (!found) {
+                asprintf(&err, "ERROR: '%s' not in shopping list.\n", prod);
+                if (err) {
+                    printF(err);
+                    free(err);
+                    err = NULL;
+                }
             } else {
-                wprintln("Current shopping list:");
-                for (int i = 0; i < item_count; i++) {
-                    wprint("  - ");
-                    wprint(items[i].name);
-                    wprint(": ");
-                    wprint_int(items[i].qty);
-                    write(STDOUT_FILENO, "\n", 1);
+                asprintf(&out, "Removed %d x %s\n", qty, prod);
+                if (out) {
+                    printF(out);
+                    free(out);
+                    out = NULL;
                 }
             }
 
         } else if (strcmp(upper, "CANCEL") == 0) {
-            wprintln("Trade session cancelled.");
+            printF("Trade session cancelled.\n");
+            free(upper);
+            free(line);
             break;
 
         } else {
-            wprintln("Commands: add <product> <qty> | list | send | cancel");
+            printF("Unknown trade command. Use: add | remove | send | cancel\n");
         }
+
+        free(upper);
+        free(line);
     }
 
-    if (items) free(items);
+    if (items != NULL) {
+        for (i = 0; i < item_count; i++) {
+            free(items[i].name);
+        }
+        free(items);
+    }
 }
