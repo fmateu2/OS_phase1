@@ -22,7 +22,9 @@ typedef struct {
 } Config;
 
 Config load_file(char *path);
+void remove_ampersand(char *s);
 void free_config(Config *cfg);
 
 
 #endif
+
