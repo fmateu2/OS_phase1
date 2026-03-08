@@ -1,6 +1,6 @@
 #include "maester.h"
 
-void dispatch(Maester *maester, char *line) {
+void dispatch(Maester *maester, char *line, int *keep_running) {    
     char *upper = NULL;
     char *ucopy = NULL;
     char *orig  = NULL;
