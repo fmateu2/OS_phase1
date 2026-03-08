@@ -22,4 +22,3 @@ void free_maester(Maester *maester) {
     maester->num_alliances = 0;
     maester->num_envoys   = 0;
 }
-
