@@ -1,3 +1,4 @@
+#define _GNU_SOURCE
 #ifndef CONFIG_H
 #define CONFIG_H
 
@@ -21,7 +22,7 @@ typedef struct {
 } Config;
 
 Config load_file(char *path);
-void free_config(Config cfg);
+void free_config(Config *cfg);
 
 
 #endif
