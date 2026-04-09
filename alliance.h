@@ -1,21 +1,20 @@
 #ifndef ALLIANCE_H
 #define ALLIANCE_H
 
-#include "config.h"
-
 typedef enum {
     PENDING,
     ON_PENDING,
     ALLIED,
     FAILED,
+    REJECTED
 } AllianceStatus;
 
 typedef struct {
     char *realm;
-    AllianceStatus alliance;
+    AllianceStatus status;
 } Alliance;
 
-Alliance *load_aliances(Config cfg);
-void free_alliances(Alliance *alliances, Config cfg);
+Alliance *init_alliances(void);
+void free_alliances(Alliance *alliances, int count);
 
 #endif

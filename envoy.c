@@ -8,8 +8,8 @@ Envoy* load_envoys(Config cfg) {
         return NULL;
     } else {
         for (int i = 0; i < cfg.num_envoys; i++) {
-        envoys[i].id = i + 1;
-        envoys[i].status = FREE;
+             envoys[i].id = i + 1;
+             envoys[i].status = FREE;
         }
     }
     return envoys;

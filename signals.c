@@ -1,25 +1,22 @@
-#define _POSIX_C_SOURCE 200809L
 #include "maester.h"
 #include <signal.h>
-#include <string.h>
 
+int *g_keep_running = NULL;
 
-volatile int keep_running = 1;
-
-static void signal_handler(int sig)
-{
+void signal_handler(int sig) {
     (void)sig;
-    keep_running = 0;
+    if (g_keep_running != NULL) {
+        *g_keep_running = 0;
+    }
 }
 
-void setup_signals(void)
-{
+void setup_signals(int *keep_running) {
     struct sigaction sa;
+    g_keep_running = keep_running;
     memset(&sa, 0, sizeof(sa));
     sa.sa_handler = signal_handler;
     sigemptyset(&sa.sa_mask);
-    sa.sa_flags = SA_RESTART;
-
+    sa.sa_flags = 0;
     sigaction(SIGINT,  &sa, NULL);
     sigaction(SIGTERM, &sa, NULL);
 }

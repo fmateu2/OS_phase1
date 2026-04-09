@@ -1,9 +1,32 @@
+#define _GNU_SOURCE
 #include "utils.h"
 #include "config.h"
 #include <fcntl.h>
 #include <stdlib.h>
 #include <string.h>
 
+void remove_ampersand(char *s) {
+    int i;
+    int j;
+    int len;
+
+    if (!s) {
+        return;
+    }
+
+    len = strlen(s);
+    i = 0;
+    while (i < len) {
+        if (s[i] == '&') {
+            for (j = i; j < len; j++) {
+                s[j] = s[j + 1];
+            }
+            len--;
+        } else {
+            i++;
+        }
+    }
+}
 
 Config load_file(char *path) {
     Config cfg = {0};
@@ -39,6 +62,7 @@ Config load_file(char *path) {
         free(line);
 
         line = readUntil(fd, '\n');
+        
         while (line != NULL) {
             char *name;
             char *ip;
@@ -77,29 +101,6 @@ Config load_file(char *path) {
     }
 
     return cfg;
-}
-
-void remove_ampersand(char *s) {
-    int i;
-    int j;
-    int len;
-
-    if (!s) {
-        return;
-    }
-
-    len = strlen(s);
-    i = 0;
-    while (i < len) {
-        if (s[i] == '&') {
-            for (j = i; j < len; j++) {
-                s[j] = s[j + 1];
-            }
-            len--;
-        } else {
-            i++;
-        }
-    }
 }
 
 void free_config(Config *cfg){
